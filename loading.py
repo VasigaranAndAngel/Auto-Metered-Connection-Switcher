@@ -36,6 +36,9 @@ class Loading(customtkinter.CTkProgressBar):
         # self._anim_set_progress()
 
     def set_progress_amount(self, amount):
+        if amount == 0:
+            self._progress_amount = 1
+            self.progress_completed(1)
         self.progress_amount = amount
 
     def reset_progress_complete(self, update: bool = False):
