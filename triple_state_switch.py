@@ -1,6 +1,8 @@
 from customtkinter import *
 from PIL import Image, ImageDraw, ImageTk
 from typing import Callable, Literal
+from PyAnimator.PyAnimator import Animator
+import threading
 
 def create_rectangle(
         width: int = 100,
@@ -33,6 +35,10 @@ class Switch(CTkFrame):
         self.button_color         = ThemeManager.theme["CTkSwitch"]["progress_color"]
         self.border_color         = ThemeManager.theme["CTkSwitch"]["progress_color"]
         self.button_hover_color   = ThemeManager.theme["CTkSwitch"]["button_hover_color"]
+
+        self.animating = False
+        self.kill_anim = False
+        self.current_pos = 0
 
         # self.back_image  = CTkImage(create_rectangle(width=self.WIDTH, height=self.HEIGHT, corner_radius=self.corner_radius,
         #                                             border_color=self.border_color[0], background_color=self.fg_color[0]),
@@ -77,13 +83,16 @@ class Switch(CTkFrame):
                                                     
         self.button_back  = self._canvas.create_image(self.WIDTH//2, self.HEIGHT//2, image=self.back_img)
         self.button_front = self._canvas.create_image(self.WIDTH//2, self.HEIGHT//2, image=self.front_img)
+        self._canvas.moveto(self.button_front, 0, '')
+        self.update()
+        x = self._canvas.coords(self.button_front)
         self._move_to(self.switch_state) # return to the current state if the switch redrawn.
 
     def _on_click(self, event):
         if event.num == 1: # if the switch is left clicked
-            order = [RIGHT, CENTER, LEFT]
-        elif event.num == 3: # if the switch is right clicked
             order = [LEFT, CENTER, RIGHT]
+        elif event.num == 3: # if the switch is right clicked
+            order = [RIGHT, CENTER, LEFT]
         else: return
 
         if self.switch_state == order[0]:
@@ -92,17 +101,46 @@ class Switch(CTkFrame):
             self._move_to(order[2])
         elif self.switch_state == order[2]:
             self._move_to(order[0])
-        self._callback()
 
+        self._callback()
+        
     def _move_to(self, to: str):
-        if to == LEFT:
-            self._canvas.moveto(self.button_front, self.WIDTH//2, '')
-            self.switch_state = LEFT
-        elif to == RIGHT:
-            self._canvas.moveto(self.button_front, 0, '')
+
+        current = self.switch_state
+        if current == LEFT: start = 0
+        elif current == RIGHT: start = self.WIDTH//2
+        elif current == CENTER: start = self.WIDTH//4
+        if to == LEFT: end = 0
+        elif to == RIGHT: end = self.WIDTH//2
+        elif to == CENTER: end = self.WIDTH//4
+
+        def do():
+            self.animating = True
+            # int(self._canvas.coords(self.button_front)[0])
+            animator = Animator(int(self.current_pos), end, duration=0.3*1, fps=60/1, easing=(0,.52,.39,1))
+            def kill(): self.animating = False; self.kill_anim = False; quit()
+            for value in animator:
+                self._canvas.moveto(self.button_front, value, '')
+                self.current_pos = value
+                self.update()
+                if self.kill_anim:
+                    kill()
+            kill()
+
+        if self.animating:
+            self.kill_anim = True
+            # self.anim_thread.join()
+        self.anim_thread = threading.Thread(target=do)
+        self.anim_thread.start()
+
+        if to == RIGHT:
+            # self._canvas.moveto(self.button_front, self.WIDTH//2, '')
             self.switch_state = RIGHT
+        elif to == LEFT:
+            # self._canvas.moveto(self.button_front, 0, '')
+            self.switch_state = LEFT
         elif to == CENTER:
-            self._canvas.moveto(self.button_front, self.WIDTH//4, '')
+            # self._canvas.moveto(self.button_front, self.WIDTH//4, '')
             self.switch_state = CENTER
 
     def _callback(self):
@@ -120,7 +158,7 @@ if __name__ == '__main__':
     def callback(state):
         print(state)
 
-    switch = Switch(root, callback=callback)
+    switch = Switch(root, callback=callback, width=500, height=100)
     switch.pack(padx=100, pady=100)
 
     root.attributes('-topmost', True)
