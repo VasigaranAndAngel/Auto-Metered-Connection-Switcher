@@ -1,7 +1,9 @@
 from customtkinter import *
-from exclude import Exclude, UNRESTRICTED, FIXED, NOTHING
+from exclude import Exclude, UNRESTRICTED, FIXED, NOTHING, OFF
 from triple_state_switch import Switch
 from loading import Loading
+from MeteredOnOff import MeteredOnOff
+from check_box import CheckBox
 import threading
 
 def add_tray_icon():
@@ -20,8 +22,8 @@ class UI(CTk):
         self.loading_bar = Loading(self.status_bar, height=4)
         self.loading_bar.pack(fill=X)
 
-        self.label = CTkLabel(self.status_bar, text='Nothing....', font=('Maiandra GD', 15))
-        self.label.pack(side=RIGHT, padx=10)
+        self.status_label = CTkLabel(self.status_bar, text='Ready!', font=('Maiandra GD', 15))
+        self.status_label.pack(side=RIGHT, padx=10)
 
         self.new_entry_frame = CTkFrame(self.status_bar, height=30, width=150, fg_color='transparent', bg_color='transparent')
         self.new_entry_frame.pack(side=LEFT, padx=5, pady=2)
@@ -59,6 +61,10 @@ class UI(CTk):
                 self._add_frame_to_list(ssid_name, exclude_type, switch_state, )
 
     def _add_frame_to_list(self, ssid_name, exclude_type, switch_state):
+        off = False
+        if len(types:=self.excludes.get_exclude_type(ssid_name)) > 1:
+            if OFF in types:
+                off = True
         def update_state(ssid_name=ssid_name):
             exclude_type = self.excludes.get_exclude_type(ssid_name)[0].title()
             self.frame_list[ssid_name][2].configure(text=exclude_type)
@@ -74,7 +80,8 @@ class UI(CTk):
             update_state(ssid_name=ssid_name)
 
         def on_delete(ssid_name=ssid_name):
-            self.excludes.remove(ssid_name)
+            self.excludes.remove(ssid_name, ALL)
+            self.excludes.remove(ssid_name, OFF)
             
             if self.scrollable_frame is not None and len(self.excludes.get_all_exclude()) <= 10:
                 self._redraw_list()
@@ -82,16 +89,30 @@ class UI(CTk):
                 self.frame_list[ssid_name][0].destroy()
                 self.frame_list.pop(ssid_name)
 
+        def on_on_off(ssid_name=ssid_name):
+            state = self.frame_list[ssid_name][4].get()
+            if state:
+                if OFF in self.excludes.get_exclude_type(ssid_name):
+                    self.excludes.remove(ssid_name, OFF)
+            else:
+                self.excludes.add_to_off(ssid_name)
+
         frame = CTkFrame(self.list_frame, 300, 30, fg_color='transparent')
         frame.pack_propagate(False)
         frame.pack(fill=X, padx=10)
+        frame.bind('<Button>', lambda e: on_off_checkbox.toggle())
+        frame.update()
 
         remove_button = CTkButton(frame, 30, 20, text='X', command=on_delete)
         remove_button.pack(side=RIGHT)
 
+        on_off_checkbox = CheckBox(frame, 20, 5, default_state=(not off), callback=on_on_off)
+        on_off_checkbox.pack(side=LEFT, padx=(0, 10))
+
         ssid_label = CTkLabel(frame, text=ssid_name, font=('Maiandra GD', 15))
         # ssid_label.place(anchor=W, relx=0, rely=0.5)
         ssid_label.pack(side=LEFT)
+        ssid_label.bind('<Button>', lambda e: on_off_checkbox.toggle())
 
         state_switch = Switch(frame, width=60, height=20, default_state=switch_state, callback=switch_callback)
         # state_switch.place(anchor=CENTER, relx=0.5, rely=0.5)
@@ -101,7 +122,7 @@ class UI(CTk):
         # state_label.place(anchor=E, relx=0.8, rely=0.5)
         state_label.pack(side=RIGHT, padx=10)
             
-        self.frame_list[ssid_name] = ([frame, ssid_label, state_label, state_switch])
+        self.frame_list[ssid_name] = ([frame, ssid_label, state_label, state_switch, on_off_checkbox])
 
     def _draw_list(self):
         self.frame_list = {}
@@ -136,12 +157,17 @@ class UI(CTk):
                 frame.destroy()
         self._draw_list()
 
+metered_on_off = MeteredOnOff()
+threading.Thread(target=metered_on_off.main).start()
+
 root = None
 def _on_open():
     global root
     if root is None:
         root = UI()
-        root.geometry('320x338')
+        set_appearance_mode('system')
+        # root.geometry('350x338+300+300')
+        root.geometry('350x338')
         root.resizable(False, False)
         root.attributes('-topmost', True)
         root.mainloop()
@@ -149,6 +175,7 @@ def _on_open():
 
 def _on_exit():
     global root
+    metered_on_off.kill = True
     if root is not None:
         root.destroy()
 
