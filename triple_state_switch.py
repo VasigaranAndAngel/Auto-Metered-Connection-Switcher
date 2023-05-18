@@ -1,7 +1,8 @@
 from customtkinter import *
+from tkinter import Event
 from PIL import Image, ImageDraw, ImageTk
 from typing import Callable, Literal
-from PyAnimator.PyAnimator import Animator
+from pyeaze import Animator
 import threading
 
 def create_rectangle(

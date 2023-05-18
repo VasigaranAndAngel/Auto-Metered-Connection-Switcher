@@ -18,15 +18,16 @@ def activate_tray_icon(on_open=None, on_exit=None, on_pause=None):
 
     menu = Menu(
         MenuItem("Open", _on_open, default=True),
-        MenuItem("Exit", _on_exit),
         MenuItem("Pause for", Menu(
             MenuItem("1 Minute", _on_pause)
-        ))
+            )
+                 ),
+        MenuItem("Exit", _on_exit),
     )
     
     icon_image = Image.open("icons\\wifi-regular-24-white.png")
 
-    tray_icon = Icon("My Icon", icon_image, "My Tooltip", menu)
+    tray_icon = Icon("My Icon", icon_image, "Metered Connection", menu)
     tray_icon.run()
 
 # test

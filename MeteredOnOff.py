@@ -4,6 +4,7 @@ import ctypes
 import subprocess
 from win10toast import ToastNotifier
 from exclude import Exclude, UNRESTRICTED, FIXED, NOTHING, OFF
+from threading import Thread
 
 #Variables for ctypes.windll.user32.MessageBoxW
 MB_OK = 0x0
@@ -15,7 +16,29 @@ ICON_EXLAIM=0x30
 ICON_INFO = 0x40
 ICON_STOP = 0x10
 
+status = None
+status_change_callback = None
+
+def set_status(*sts):
+    global status
+    status = ''.join(sts)
+    if status_change_callback is not None:
+        status_change_callback()
+
 class MeteredOnOff:
+    def __init__(self, status_change_callback=None) -> None:
+        self.status = None
+        self.callback = status_change_callback
+        self._immediate_refresh = False
+
+    def _set_status(self, *sts):
+        self.status = ''.join(sts)
+        if self.callback is not None:
+            self.callback()
+
+    def immediate_refresh(self):
+        self._immediate_refresh = True
+
     def main(self):
         self.kill = False
 
@@ -46,9 +69,11 @@ class MeteredOnOff:
 
         def notify(body, title = "Auto Metered Connection", duration = 5):
             print('Notifying - ' + str(body))
-            notifier.show_toast(title, body, duration = duration)
-
+            self._set_status('Waiting for Notification...')
+            Thread(target=notifier.show_toast, args=(title, body,), kwargs={'duration' : duration}).start()
+            
         while True:
+            self._set_status('Refreshing...')
             dtime = datetime.datetime.now()
             hour = dtime.hour
             print("Refreshing...")
@@ -125,9 +150,15 @@ class MeteredOnOff:
                     else:
                         notify("Returned with Error while executing command for change parameter.")
             
+            self._immediate_refresh = False
             dtime = datetime.datetime.now()
             print("Current Second - "+str(dtime.second)+". Next Refresh in "+str(60-dtime.second)+" Seconds.")
-            time.sleep(60-dtime.second)
+            for second in range(60-dtime.second, 0, -1):
+                self._set_status(f'Next refresh in {second} seconds...')
+                time.sleep(1)
+                if self._immediate_refresh:
+                    break
+            # time.sleep(60-dtime.second)
             if self.kill:
                 quit()
 

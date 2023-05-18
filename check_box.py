@@ -2,7 +2,7 @@ from customtkinter import *
 from PIL import Image, ImageDraw, ImageTk
 from typing import Union, Tuple, List, Any, Literal, Callable, Optional
 from colorsys import rgb_to_hls, hls_to_rgb
-from PyAnimator.PyAnimator import Animator
+from pyeaze import Animator
 import threading
 
 SPAWN = 'spawn'

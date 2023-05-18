@@ -5,6 +5,7 @@ from loading import Loading
 from MeteredOnOff import MeteredOnOff
 from check_box import CheckBox
 import threading
+from pyautogui import position as pointer_position
 
 def add_tray_icon():
     from tray_icon import activate_tray_icon
@@ -22,8 +23,9 @@ class UI(CTk):
         self.loading_bar = Loading(self.status_bar, height=4)
         self.loading_bar.pack(fill=X)
 
-        self.status_label = CTkLabel(self.status_bar, text='Ready!', font=('Maiandra GD', 15))
+        self.status_label = CTkLabel(self.status_bar, text='', font=('Maiandra GD', 15))
         self.status_label.pack(side=RIGHT, padx=10)
+        self.status_label.bind('<Button>', self._immediate_refresh)
 
         self.new_entry_frame = CTkFrame(self.status_bar, height=30, width=150, fg_color='transparent', bg_color='transparent')
         self.new_entry_frame.pack(side=LEFT, padx=5, pady=2)
@@ -157,7 +159,17 @@ class UI(CTk):
                 frame.destroy()
         self._draw_list()
 
-metered_on_off = MeteredOnOff()
+    def _immediate_refresh(self, event=None):
+        immediate_refresh()
+
+def on_status_change():
+    if root is not None:
+        root.status_label.configure(text=metered_on_off.status)
+
+def immediate_refresh():
+    metered_on_off.immediate_refresh()
+
+metered_on_off = MeteredOnOff(on_status_change)
 threading.Thread(target=metered_on_off.main).start()
 
 root = None
@@ -167,7 +179,10 @@ def _on_open():
         root = UI()
         set_appearance_mode('system')
         # root.geometry('350x338+300+300')
-        root.geometry('350x338')
+        w, h = 370, 338
+        pointer_x, pointer_y = pointer_position()
+        x, y = pointer_x - (w // 2), pointer_y - h - 47 - 30  # 47 = hight of taskbar, 30 = hight of window title bar
+        root.geometry('%dx%d+%d+%d' % (w, h, x, y))
         root.resizable(False, False)
         root.attributes('-topmost', True)
         root.mainloop()
